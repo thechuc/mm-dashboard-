@@ -1,0 +1,14 @@
+{
+    "version": 3,
+    "framework": "nextjs",
+    "routes": [
+        {
+            "src": "/api/(.*)",
+            "dest": "/app/api/$1"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "/"
+        }
+    ]
+}

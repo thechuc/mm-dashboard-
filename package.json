@@ -1,0 +1,28 @@
+{
+    "name": "mm-dashboard",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "next dev",
+        "build": "next build",
+        "start": "next start"
+    },
+    "engines": {
+        "node": ">=20.9.0"
+    },
+    "dependencies": {
+        "axios": "^1.6.8",
+        "chalk": "^5.3.0",
+        "dayjs": "^1.11.19",
+        "next": "latest",
+        "react": "latest",
+        "react-dom": "latest",
+        "react-markdown": "^9.1.0",
+        "recharts": "^2.15.4",
+        "ws": "^8.17.0"
+    },
+    "devDependencies": {
+        "@types/node": "24.10.0",
+        "typescript": "5.9.3"
+    }
+}

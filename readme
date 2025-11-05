@@ -1,0 +1,15 @@
+mm-dashboard/
+ ├─ app/
+ │   ├─ api/
+ │   │   ├─ mm/
+ │   │   │   └─ [symbol]/route.js       ← API: /api/mm/:symbol
+ │   │   └─ stream/
+ │   │       ├─ [symbol]/start/route.js ← API: /api/stream/:symbol/start
+ │   │       └─ stop/route.js           ← API: /api/stream/stop
+ │   └─ page.tsx                        ← giao diện dashboard
+ ├─ services/
+ │   ├─ binance.js                      ← lấy Funding, OI, Ratio,...
+ │   └─ ws-binance.js                   ← quản lý WebSocket Binance
+ ├─ package.json
+ ├─ next.config.js
+ └─ vercel.json
