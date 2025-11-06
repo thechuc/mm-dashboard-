@@ -4,32 +4,40 @@ const BASE = "https://fapi.binance.com";
 
 /**
  * Lấy dữ liệu Market Maker cơ bản từ Binance Futures.
- * Tự động fallback sang proxy nếu server bị 451.
+ * Nếu bị lỗi 451/CORS, tự động fallback qua proxy route.
  */
 export async function getBinanceData(symbol) {
   const pair = symbol.toUpperCase();
   const proxy = `/api/proxy/binance?url=`;
 
+  async function tryFetch(url) {
+    try {
+      const res = await axios.get(url, { timeout: 8000 });
+      if (res.status === 451 || typeof res.data !== "object") throw new Error("blocked");
+      return res.data;
+    } catch (err) {
+      console.warn("⚠️ Direct call failed, fallback proxy:", url);
+      const proxyUrl = proxy + encodeURIComponent(url);
+      const r = await fetch(proxyUrl, { cache: "no-store" });
+      if (!r.ok) throw new Error("Proxy failed " + r.status);
+      return await r.json();
+    }
+  }
+
   try {
-    // REST API Binance
-    const fundingUrl = `${BASE}/fapi/v1/fundingRate?symbol=${pair}&limit=1`;
-    const oiUrl = `${BASE}/fapi/v1/openInterest?symbol=${pair}`;
-    const tickerUrl = `${BASE}/fapi/v1/ticker/24hr?symbol=${pair}`;
-    const lsrUrl = `${BASE}/futures/data/topLongShortAccountRatio?symbol=${pair}&period=5m&limit=1`;
+    // === Fetch data ===
+    const funding = await tryFetch(`${BASE}/fapi/v1/fundingRate?symbol=${pair}&limit=1`);
+    const oi = await tryFetch(`${BASE}/fapi/v1/openInterest?symbol=${pair}`);
+    const ticker = await tryFetch(`${BASE}/fapi/v1/ticker/24hr?symbol=${pair}`);
+    const lsr = await tryFetch(`${BASE}/futures/data/topLongShortAccountRatio?symbol=${pair}&period=5m&limit=1`);
 
-    // 🧠 Nếu gọi trực tiếp bị lỗi 451 → gọi qua proxy (Netlify client IP VN)
-    const funding = await axios.get(fundingUrl).catch(() => axios.get(proxy + encodeURIComponent(fundingUrl)));
-    const oi = await axios.get(oiUrl).catch(() => axios.get(proxy + encodeURIComponent(oiUrl)));
-    const ticker = await axios.get(tickerUrl).catch(() => axios.get(proxy + encodeURIComponent(tickerUrl)));
-    const lsr = await axios.get(lsrUrl).catch(() => axios.get(proxy + encodeURIComponent(lsrUrl)));
+    // === Parse ===
+    const FR = parseFloat(funding[0]?.fundingRate || 0) * 100;
+    const OI = parseFloat(oi.openInterest || 0);
+    const Price = parseFloat(ticker.lastPrice || 0);
+    const Vol = parseFloat(ticker.volume || 0);
 
-    // Xử lý dữ liệu
-    const FR = parseFloat(funding.data[0]?.fundingRate || 0) * 100;
-    const OI = parseFloat(oi.data.openInterest || 0);
-    const Price = parseFloat(ticker.data.lastPrice || 0);
-    const Vol = parseFloat(ticker.data.volume || 0);
-
-    const lsrData = lsr.data?.[0] || {};
+    const lsrData = lsr[0] || {};
     const ratio = parseFloat(lsrData.longShortRatio || 1);
     const longPct = (100 * ratio / (1 + ratio)).toFixed(1);
     const shortPct = (100 - longPct).toFixed(1);
