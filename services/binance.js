@@ -3,72 +3,51 @@ import axios from "axios";
 const BASE = "https://fapi.binance.com";
 
 /**
- * Lấy dữ liệu Market Maker cơ bản từ Binance Futures
- * (Funding Rate, Open Interest, Price, Volume, Long/Short Ratio)
+ * Lấy dữ liệu Market Maker cơ bản từ Binance Futures.
+ * Tự động fallback sang proxy nếu server bị 451.
  */
 export async function getBinanceData(symbol) {
   const pair = symbol.toUpperCase();
+  const proxy = `/api/proxy/binance?url=`;
 
   try {
-    // config HTTP chung để tránh bị chặn
-    const isServer = typeof window === "undefined";
-    const baseURL = isServer
-      ? "https://fapi.binance.com"
-      : "/api/proxy/binance"; // gọi qua proxy trên client
+    // REST API Binance
+    const fundingUrl = `${BASE}/fapi/v1/fundingRate?symbol=${pair}&limit=1`;
+    const oiUrl = `${BASE}/fapi/v1/openInterest?symbol=${pair}`;
+    const tickerUrl = `${BASE}/fapi/v1/ticker/24hr?symbol=${pair}`;
+    const lsrUrl = `${BASE}/futures/data/topLongShortAccountRatio?symbol=${pair}&period=5m&limit=1`;
 
-    const http = axios.create({
-      baseURL,
-      timeout: 8000,
-      headers: {
-        "User-Agent": "MM-Dashboard/1.0",
-      },
-    });
+    // 🧠 Nếu gọi trực tiếp bị lỗi 451 → gọi qua proxy (Netlify client IP VN)
+    const funding = await axios.get(fundingUrl).catch(() => axios.get(proxy + encodeURIComponent(fundingUrl)));
+    const oi = await axios.get(oiUrl).catch(() => axios.get(proxy + encodeURIComponent(oiUrl)));
+    const ticker = await axios.get(tickerUrl).catch(() => axios.get(proxy + encodeURIComponent(tickerUrl)));
+    const lsr = await axios.get(lsrUrl).catch(() => axios.get(proxy + encodeURIComponent(lsrUrl)));
 
-    // 1️⃣ Funding Rate
-    const funding = await http.get(`/fapi/v1/fundingRate`, {
-      params: { symbol: pair, limit: 1 },
-    });
-
-    // 2️⃣ Open Interest
-    const oi = await http.get(`/fapi/v1/openInterest`, {
-      params: { symbol: pair },
-    });
-
-    // 3️⃣ 24h Stats (Giá + Volume)
-    const ticker = await http.get(`/fapi/v1/ticker/24hr`, {
-      params: { symbol: pair },
-    });
-
-    // 4️⃣ Long/Short Ratio
-    const lsr = await http.get(`/futures/data/topLongShortAccountRatio`, {
-      params: { symbol: pair, period: "5m", limit: 1 },
-    });
-
-    // ====== Xử lý dữ liệu ======
-    const FR = parseFloat(funding.data?.[0]?.fundingRate || 0) * 100;
-    const OI = parseFloat(oi.data?.openInterest || 0);
-    const Price = parseFloat(ticker.data?.lastPrice || 0);
-    const Vol = parseFloat(ticker.data?.volume || 0);
+    // Xử lý dữ liệu
+    const FR = parseFloat(funding.data[0]?.fundingRate || 0) * 100;
+    const OI = parseFloat(oi.data.openInterest || 0);
+    const Price = parseFloat(ticker.data.lastPrice || 0);
+    const Vol = parseFloat(ticker.data.volume || 0);
 
     const lsrData = lsr.data?.[0] || {};
     const ratio = parseFloat(lsrData.longShortRatio || 1);
-    const longPct = (ratio / (1 + ratio)) * 100;
-    const shortPct = 100 - longPct;
+    const longPct = (100 * ratio / (1 + ratio)).toFixed(1);
+    const shortPct = (100 - longPct).toFixed(1);
 
     return {
-      fundingRate: FR ? `${FR.toFixed(4)}%` : "N/A",
-      openInterest: OI ? `${OI.toFixed(2)} USDT` : "N/A",
-      price: Price ? Price.toFixed(2) : "N/A",
-      volume24h: Vol ? Vol.toFixed(2) : "N/A",
+      fundingRate: `${FR.toFixed(4)}%`,
+      openInterest: `${OI.toFixed(2)} USDT`,
+      price: Price.toFixed(2),
+      volume24h: `${Vol.toFixed(2)}`,
       longShortRatio: ratio.toFixed(2),
-      longRatio: `${longPct.toFixed(1)}%`,
-      shortRatio: `${shortPct.toFixed(1)}%`,
+      longRatio: `${longPct}%`,
+      shortRatio: `${shortPct}%`,
       takerBuy: "N/A",
       takerSell: "N/A",
       delta: "N/A",
     };
   } catch (err) {
-    console.error("❌ Binance API error:", err?.message);
+    console.error("❌ Binance API error:", err.message);
     return {
       fundingRate: "N/A",
       openInterest: "N/A",
