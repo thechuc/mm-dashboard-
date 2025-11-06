@@ -32,9 +32,9 @@ type Hist = { funding: Point[]; oi: Point[]; lsr: Point[] };
 
 // === Config ===
 const API_BASE =
-  process.env.NEXT_PUBLIC_MM_API || "http://localhost:3000";
+  process.env.NEXT_PUBLIC_MM_API?.trim() || "http://localhost:3000";
 const DEFAULT_SYMBOL =
-  process.env.NEXT_PUBLIC_DEFAULT_SYMBOL || "BTCUSDT";
+  process.env.NEXT_PUBLIC_DEFAULT_SYMBOL?.trim() || "BTCUSDT";
 
 // === Helpers ===
 function parsePct(s?: string) {
