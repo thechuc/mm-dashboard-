@@ -11,12 +11,16 @@ export async function getBinanceData(symbol) {
 
   try {
     // config HTTP chung để tránh bị chặn
+    const isServer = typeof window === "undefined";
+    const baseURL = isServer
+      ? "https://fapi.binance.com"
+      : "/api/proxy/binance"; // gọi qua proxy trên client
+
     const http = axios.create({
-      baseURL: BASE,
+      baseURL,
       timeout: 8000,
       headers: {
         "User-Agent": "MM-Dashboard/1.0",
-        "Accept": "application/json",
       },
     });
 
