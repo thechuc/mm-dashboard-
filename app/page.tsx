@@ -61,7 +61,7 @@ export default function Page() {
   const fetchOnce = async (sym: string) => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/api/mm/${sym}`, { cache: "no-store" });
+      const res = await fetch(`${API_BASE?.trim()}/api/mm/${sym?.trim()}`, { cache: "no-store" });
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
       const data: MMResponse = await res.json();
       setMM(data);
@@ -100,15 +100,15 @@ export default function Page() {
   // Auto fetch + restart stream khi đổi symbol
   useEffect(() => {
     const startStream = async () => {
-      await fetch(`${API_BASE}/api/stream/stop`).catch(() => { });
-      await fetch(`${API_BASE}/api/stream/${symbol}/start`).catch(() => { });
+      await fetch(`${API_BASE?.trim()}/api/stream/stop`).catch(() => { });
+      await fetch(`${API_BASE?.trim()}/api/stream/${symbol?.trim()}/start`).catch(() => { });
     };
     startStream();
     fetchOnce(symbol);
     timer.current = setInterval(() => fetchOnce(symbol), 5000);
     return () => {
       if (timer.current) clearInterval(timer.current);
-      fetch(`${API_BASE}/api/stream/stop`).catch(() => { });
+      fetch(`${API_BASE?.trim()}/api/stream/stop`).catch(() => { });
     };
   }, [symbol]);
 
